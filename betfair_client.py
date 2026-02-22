@@ -73,13 +73,12 @@ def listMarketCatalogue():
     headers = {
         "X-Authentication": session,
         "X-Application": app_key,
-        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Type": "application/json",
     }
 
     body = {
         "jsonrpc": "2.0",
         "method": "SportsAPING/v1.0/listMarketCatalogue",
-        "id": 1,
         "params": {
             "filter": {
                 "eventTypeIds": ["1"],
@@ -104,7 +103,6 @@ def findMarket(match, catalogue):
     away = match["away"]
     matchStartTime = match["startTime"]
     for market in catalogue:
-        event = market["event"]
         marketStartTime = market["marketStartTime"]
         if matchStartTime != marketStartTime:
             continue
@@ -121,6 +119,38 @@ def getSelectionId(market, teamToLay):
             return runner["selectionId"]
     return None
 
+def listMarketBook(marketId, selectionId):
+    session = getToken()
+
+    url = "https://api.betfair.com/exchange/betting/json-rpc/v1"
+
+    headers = {
+        "X-Authentication": session,
+        "X-Application": app_key,
+        "Content-Type": "application/json",
+    }
+
+    body = {
+        "jsonrpc": "2.0",
+        "method": "SportsAPING/v1.0/listMarketBook",
+        "params": {
+            "marketIds": [marketId],
+            "priceProjection": {
+                "priceData": ["EX_BEST_OFFERS"]
+            },
+        },
+        "id": 1,
+    }
+
+    response = requests.post(url, headers=headers, json=body)
+    data = response.json()["result"] 
+    market = data[0]
+    for runner in market["runners"]:
+        if runner["selectionId"] == selectionId:
+            if runner.get("ex", {}).get("availableToLay"):
+                return runner["ex"]["availableToLay"][0]["price"]
+    return None    
+
 eventTypes = listEventTypes()
 match = getMatch()
 catalogue = listMarketCatalogue()
@@ -132,6 +162,11 @@ if market:
         print(f"Safe to lay {teamToLay}!")
         print(f"Market id: {market["marketId"]}")
         print(f"Selection id: {selectionId}")
+        bestLayPrice = listMarketBook(market["marketId"], selectionId)
+        if bestLayPrice:
+            print(f"The best lay price right now is {bestLayPrice}!")
+        else:
+            print("There are no prices for this match :(")
     else:
         print(f"Could not find {teamToLay} in Betfair :(")
 else:
