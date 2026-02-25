@@ -97,7 +97,6 @@ def listMarketCatalogue():
         },
         "id": 1,
     }
-    
     response = requests.post(url, headers=headers, json=body)
     return response.json()["result"]
 
